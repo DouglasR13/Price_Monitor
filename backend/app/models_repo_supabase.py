@@ -168,13 +168,23 @@ class ProductRepo:
         self.sb = get_supabase()
 
     def _enrich_product(self, prod: dict) -> dict:
-        """Adds latest_record, all_time_min/max and records_count to a product row."""
+        """Adds latest_record, all_time_min/max, records_count and store offers to a product row."""
         pid = prod["id"]
 
         # Latest price record
         lr = self.sb.table("price_records").select("*").eq("product_id", pid)\
             .order("checked_at", desc=True).limit(1).execute()
-        prod["latest_record"] = lr.data[0] if lr.data else None
+        
+        if lr.data:
+            rec = lr.data[0]
+            # Fetch individual store offers for the latest check
+            offers_res = self.sb.table("store_offers").select(
+                "store_name, product_title, price, url, is_best"
+            ).eq("price_record_id", rec["id"]).order("price").execute()
+            rec["offers"] = offers_res.data or []
+            prod["latest_record"] = rec
+        else:
+            prod["latest_record"] = None
 
         # All-time stats
         agg = self.sb.table("price_records").select(
@@ -350,3 +360,31 @@ class ProductRepo:
             "total_price_checks": records.count or 0,
             "average_market_price": avg_market,
         }
+
+    def get_ignored_stores(self, user_id: int) -> List[str]:
+        from app.database_supabase import get_setting
+        import json
+        val = get_setting(f"ignored_stores_{user_id}", "[]")
+        try:
+            return json.loads(val)
+        except Exception:
+            return []
+
+    def add_ignored_store(self, user_id: int, store_name: str) -> List[str]:
+        from app.database_supabase import set_setting
+        import json
+        stores = self.get_ignored_stores(user_id)
+        clean = store_name.strip()
+        if clean and clean.lower() not in [s.lower() for s in stores]:
+            stores.append(clean)
+            set_setting(f"ignored_stores_{user_id}", json.dumps(stores))
+        return stores
+
+    def remove_ignored_store(self, user_id: int, store_name: str) -> List[str]:
+        from app.database_supabase import set_setting
+        import json
+        stores = self.get_ignored_stores(user_id)
+        clean = store_name.strip().lower()
+        stores = [s for s in stores if s.strip().lower() != clean]
+        set_setting(f"ignored_stores_{user_id}", json.dumps(stores))
+        return stores

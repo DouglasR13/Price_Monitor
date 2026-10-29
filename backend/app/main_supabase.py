@@ -183,8 +183,16 @@ def check_single_product(product_id: int, send_telegram: bool = True) -> Dict[st
     if not product:
         raise HTTPException(status_code=404, detail="Produto não encontrado")
 
+    # Retrieve user's ignored stores
+    user_id = product.get("user_id")
+    ignored = repo.get_ignored_stores(user_id) if user_id else []
+
     search_q = product["search_query"] or f"{product['brand']} {product['name']}"
-    scraped = fetch_buscape_offers(search_q)
+    scraped = fetch_buscape_offers(
+        query=search_q,
+        brand=product.get("brand", ""),
+        ignored_stores=ignored
+    )
 
     # Get history for analysis
     history = repo.get_history(product_id, limit=30)
@@ -220,6 +228,124 @@ def check_single_product(product_id: int, send_telegram: bool = True) -> Dict[st
         "product_name": product["name"],
         "record": record,
         "telegram_notification": telegram_result,
+    }
+
+
+# ==================== IGNORED STORES ENDPOINTS ====================
+
+@app.get("/api/user/ignored-stores")
+def get_user_ignored_stores(user_id: int):
+    repo = ProductRepo()
+    return {"user_id": user_id, "ignored_stores": repo.get_ignored_stores(user_id)}
+
+
+@app.post("/api/user/ignore-store")
+def ignore_store(payload: Dict[str, Any]):
+    user_id = payload.get("user_id")
+    store_name = payload.get("store_name", "").strip()
+    product_id = payload.get("product_id")
+
+    if not user_id or not store_name:
+        raise HTTPException(status_code=400, detail="user_id e store_name são obrigatórios.")
+
+    repo = ProductRepo()
+    updated_stores = repo.add_ignored_store(user_id, store_name)
+
+    # If product_id was provided, recheck immediately to recalculate prices without this store
+    new_product_data = None
+    if product_id:
+        try:
+            check_single_product(product_id, send_telegram=False)
+            new_product_data = repo.get_by_id(product_id)
+        except Exception as e:
+            logger.warning(f"Error re-checking product {product_id} after ignoring store: {e}")
+
+    return {
+        "success": True,
+        "message": f"A loja '{store_name}' foi adicionada à sua lista de ignoradas.",
+        "ignored_stores": updated_stores,
+        "updated_product": new_product_data
+    }
+
+
+@app.post("/api/user/unignore-store")
+def unignore_store(payload: Dict[str, Any]):
+    user_id = payload.get("user_id")
+    store_name = payload.get("store_name", "").strip()
+
+    if not user_id or not store_name:
+        raise HTTPException(status_code=400, detail="user_id e store_name são obrigatórios.")
+
+    repo = ProductRepo()
+    updated_stores = repo.remove_ignored_store(user_id, store_name)
+
+    return {
+        "success": True,
+        "message": f"A loja '{store_name}' foi reativada.",
+        "ignored_stores": updated_stores
+    }
+
+
+# ==================== DAILY CRON AT 22:00 ====================
+
+@app.get("/api/cron/daily-report")
+@app.post("/api/cron/daily-report")
+def run_daily_cron_routine(background_tasks: BackgroundTasks):
+    """
+    Called by cloud cron (e.g. cron-job.org or Render Cron) at 22:00.
+    1. Scrapes all active products with each user's store preferences.
+    2. Sends email reports to all registered users.
+    """
+    logger.info("⏰ Iniciando rotina automática diária das 22:00...")
+    u_repo = UserRepo()
+    p_repo = ProductRepo()
+
+    users = u_repo.list_all()
+    cron_results = []
+
+    for u in users:
+        u_id = u["id"]
+        # Check products owned by this user
+        user_products = p_repo.get_all(user_id=u_id, role=u["role"], active_only=True)
+        if not user_products:
+            continue
+
+        # Re-check prices for all products of this user
+        for prod in user_products:
+            try:
+                check_single_product(prod["id"], send_telegram=False)
+            except Exception as e:
+                logger.warning(f"Erro atualizando produto {prod['id']}: {e}")
+
+        # Fetch freshly updated product data
+        fresh_products = p_repo.get_all(user_id=u_id, role=u["role"], active_only=True)
+
+        # Dispatch email report
+        try:
+            email_res = send_daily_email_report(
+                to_email=u["email"],
+                user_name=u["name"],
+                products=fresh_products
+            )
+            cron_results.append({
+                "user_id": u_id,
+                "email": u["email"],
+                "status": "SENT" if email_res.get("success") else "FAILED",
+                "detail": email_res
+            })
+        except Exception as ex:
+            cron_results.append({
+                "user_id": u_id,
+                "email": u["email"],
+                "status": "ERROR",
+                "error": str(ex)
+            })
+
+    return {
+        "timestamp": datetime.now().isoformat(),
+        "routine": "daily_22_00",
+        "users_processed": len(cron_results),
+        "results": cron_results
     }
 
 

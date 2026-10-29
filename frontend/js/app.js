@@ -133,6 +133,8 @@ function initEventListeners() {
   document.getElementById('btnNewProduct')?.addEventListener('click', () => openModal('newProductModal'));
   document.getElementById('btnSettings')?.addEventListener('click', openSettingsModal);
   document.getElementById('btnCheckAll')?.addEventListener('click', handleCheckAll);
+  document.getElementById('btnManageStores')?.addEventListener('click', openStoresManagementModal);
+  document.getElementById('btnBlockStoreManual')?.addEventListener('click', handleAddIgnoredStoreManual);
 
   // Modal Closers
   document.querySelectorAll('[data-close-modal]').forEach(btn => {
@@ -617,6 +619,22 @@ function renderProducts() {
 
     const defaultImg = 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=500&auto=format&fit=crop&q=80';
     const imgUrl = p.image_url || defaultImg;
+    const offers = rec.offers || [];
+    const offersCount = offers.length;
+
+    let offersPreviewHtml = '';
+    if (offersCount > 0) {
+      const topStores = offers.slice(0, 3).map(o => {
+        const offBadge = o.is_official ? '⭐' : '';
+        return `<span style="background: rgba(255,255,255,0.06); padding: 2px 6px; border-radius: 4px; font-size: 0.72rem; color: #cbd5e1; white-space: nowrap;">${offBadge}${o.store_name}: <strong>R$ ${Math.round(o.price).toLocaleString('pt-BR')}</strong></span>`;
+      }).join(' ');
+      offersPreviewHtml = `
+        <div style="margin-top: 0.5rem; display: flex; flex-wrap: wrap; gap: 4px; align-items: center; cursor: pointer;" onclick="openProductStoresModal(${p.id})" title="Clique para ver todas as lojas">
+          ${topStores}
+          ${offersCount > 3 ? `<span style="font-size: 0.7rem; color: #38bdf8;">+${offersCount - 3} lojas</span>` : ''}
+        </div>
+      `;
+    }
 
     return `
       <div class="product-card ${recClass}" id="product-card-${p.id}">
@@ -647,6 +665,7 @@ function renderProducts() {
             <span>Loja: <strong class="best-store-chip">🏪 ${bestStore}</strong></span>
             <span>Média: R$ ${Math.round(avgPrice).toLocaleString('pt-BR')}</span>
           </div>
+          ${offersPreviewHtml}
         </div>
 
         <div class="verdict-pill ${recClass}">
@@ -661,6 +680,9 @@ function renderProducts() {
           <a href="${bestUrl}" target="_blank" rel="noopener noreferrer" class="btn btn-emerald btn-sm btn-store">
             🛒 Comprar na ${bestStore}
           </a>
+          <button class="btn btn-secondary btn-sm" onclick="openProductStoresModal(${p.id})" title="Ver todas as lojas onde este produto foi achado">
+            🏪 Lojas (${offersCount || 1})
+          </button>
           <button class="btn btn-secondary btn-sm" onclick="openHistoryModal(${p.id})">
             📈 Gráfico
           </button>
@@ -999,4 +1021,185 @@ function showToast(message, type = 'success') {
   setTimeout(() => {
     toast.classList.remove('show');
   }, 4000);
+}
+
+// ==================== STORE COMPARISON & BLACKLIST CONTROLLERS ====================
+
+function openProductStoresModal(productId) {
+  const prod = state.products.find(p => p.id === productId);
+  if (!prod) return;
+
+  const rec = prod.latest_record || {};
+  const offers = rec.offers || [];
+
+  document.getElementById('productStoresModalTitle').textContent = `🏪 ${prod.name} (${prod.brand})`;
+  document.getElementById('productStoresModalSubtitle').textContent = `Foram encontradas ${offers.length} ofertas em lojas monitoradas`;
+
+  const container = document.getElementById('productStoresList');
+  if (!container) return;
+
+  if (offers.length === 0) {
+    container.innerHTML = `
+      <div style="text-align: center; padding: 2rem; color: #64748b;">
+        Nenhuma oferta detalhada disponível no momento. Clique em "Verificar" no card para atualizar.
+      </div>
+    `;
+    openModal('modalProductStores');
+    return;
+  }
+
+  container.innerHTML = offers.map(o => {
+    const isBest = o.is_best;
+    const isOfficial = o.is_official;
+    const bestBadge = isBest ? `<span style="background: rgba(16, 185, 129, 0.2); color: #34d399; font-size: 0.72rem; padding: 3px 8px; border-radius: 4px; font-weight: bold; border: 1px solid rgba(16, 185, 129, 0.4);">🟢 Menor Preço</span>` : '';
+    const officialBadge = isOfficial ? `<span style="background: rgba(99, 102, 241, 0.2); color: #a5b4fc; font-size: 0.72rem; padding: 3px 8px; border-radius: 4px; font-weight: bold; border: 1px solid rgba(99, 102, 241, 0.4);">⭐ Loja Oficial da Marca</span>` : '';
+    const storeLink = o.url || rec.best_url || '#';
+
+    return `
+      <div style="background: rgba(15, 23, 42, 0.6); border: 1px solid ${isBest ? 'rgba(16, 185, 129, 0.4)' : 'rgba(255, 255, 255, 0.08)'}; border-radius: 8px; padding: 12px 14px; display: flex; align-items: center; justify-content: space-between; gap: 10px;">
+        <div style="display: flex; flex-direction: column; gap: 4px;">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <strong style="font-size: 0.95rem; color: #f8fafc;">🏪 ${o.store_name}</strong>
+            ${bestBadge}
+            ${officialBadge}
+          </div>
+          <div style="font-size: 0.78rem; color: #94a3b8;">
+            ${o.product_title || prod.name}
+          </div>
+        </div>
+
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <div style="text-align: right;">
+            <div style="font-size: 1.15rem; font-weight: 8px; color: ${isBest ? '#34d399' : '#38bdf8'}; font-family: monospace; font-weight: bold;">
+              R$ ${o.price.toLocaleString('pt-BR', {minimumFractionDigits: 2})}
+            </div>
+          </div>
+
+          <a href="${storeLink}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm" style="font-size: 0.75rem; padding: 0.4rem 0.75rem;">
+            Abrir Loja ↗
+          </a>
+
+          <button class="btn btn-outline-danger btn-sm" style="font-size: 0.75rem; padding: 0.4rem 0.65rem;" title="Ignorar esta loja (remover dos cálculos de menor preço)" onclick="handleIgnoreStore('${o.store_name.replace(/'/g, "\\'")}', ${prod.id})">
+            🚫 Ignorar
+          </button>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  openModal('modalProductStores');
+}
+
+async function handleIgnoreStore(storeName, productId) {
+  const confirmed = confirm(`Deseja realmente ignorar a loja "${storeName}"?\n\nEla será bloqueada do seu perfil e o menor preço será recalculado sem ela.`);
+  if (!confirmed) return;
+
+  try {
+    const res = await fetch(`${API_BASE}/api/user/ignore-store`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        user_id: state.currentUser.id,
+        store_name: storeName,
+        product_id: productId
+      })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || 'Erro ao ignorar loja');
+
+    showToast(`A loja "${storeName}" foi bloqueada com sucesso!`, 'success');
+    closeModal('modalProductStores');
+    await loadDashboardData();
+  } catch (err) {
+    showToast(`Erro ao ignorar loja: ${err.message}`, 'error');
+  }
+}
+
+async function openStoresManagementModal() {
+  openModal('modalStoresManagement');
+  await renderIgnoredStoresList();
+}
+
+async function renderIgnoredStoresList() {
+  const container = document.getElementById('ignoredStoresContainer');
+  if (!container) return;
+
+  container.innerHTML = `<div style="text-align: center; color: #64748b; font-size: 0.8rem; padding: 10px;">Carregando lojas bloqueadas...</div>`;
+
+  try {
+    const res = await fetch(`${API_BASE}/api/user/ignored-stores?user_id=${state.currentUser.id}`);
+    const data = await res.json();
+    const stores = data.ignored_stores || [];
+
+    if (stores.length === 0) {
+      container.innerHTML = `
+        <div style="color: #64748b; font-size: 0.85rem; text-align: center; padding: 12px;">
+          Nenhuma loja bloqueada no momento. Todas as lojas estão ativas nas buscas.
+        </div>
+      `;
+      return;
+    }
+
+    container.innerHTML = stores.map(storeName => `
+      <div style="display: flex; align-items: center; justify-content: space-between; padding: 6px 10px; background: rgba(255,255,255,0.03); border-radius: 6px; margin-bottom: 6px; border: 1px solid rgba(255,255,255,0.05);">
+        <span style="font-size: 0.85rem; color: #f8fafc;">🚫 <strong>${storeName}</strong></span>
+        <button class="btn btn-secondary btn-sm" style="font-size: 0.72rem; padding: 2px 8px;" onclick="handleUnignoreStore('${storeName.replace(/'/g, "\\'")}')">
+          Restaurar Loja
+        </button>
+      </div>
+    `).join('');
+  } catch (err) {
+    container.innerHTML = `<div style="color: #ef4444; font-size: 0.8rem; padding: 8px;">Erro ao carregar lojas bloqueadas.</div>`;
+  }
+}
+
+async function handleUnignoreStore(storeName) {
+  try {
+    const res = await fetch(`${API_BASE}/api/user/unignore-store`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        user_id: state.currentUser.id,
+        store_name: storeName
+      })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || 'Erro ao restaurar loja');
+
+    showToast(`A loja "${storeName}" foi restaurada!`, 'success');
+    await renderIgnoredStoresList();
+    await loadDashboardData();
+  } catch (err) {
+    showToast(`Erro ao restaurar loja: ${err.message}`, 'error');
+  }
+}
+
+async function handleAddIgnoredStoreManual() {
+  const input = document.getElementById('inputBlockStoreName');
+  const storeName = input ? input.value.trim() : '';
+
+  if (!storeName) {
+    showToast('Digite o nome da loja que deseja bloquear.', 'error');
+    return;
+  }
+
+  try {
+    const res = await fetch(`${API_BASE}/api/user/ignore-store`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        user_id: state.currentUser.id,
+        store_name: storeName
+      })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || 'Erro ao bloquear loja');
+
+    showToast(`Loja "${storeName}" bloqueada com sucesso!`, 'success');
+    if (input) input.value = '';
+    await renderIgnoredStoresList();
+    await loadDashboardData();
+  } catch (err) {
+    showToast(`Erro: ${err.message}`, 'error');
+  }
 }

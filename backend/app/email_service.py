@@ -15,6 +15,37 @@ SMTP_USER = os.getenv("SMTP_USER", "")
 SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "")
 SMTP_FROM = os.getenv("SMTP_FROM", "PriceRadar AI <alertas@priceradar.local>")
 
+def build_email_offers_snippet(offers: List[Dict[str, Any]], fallback_url: str) -> str:
+    """Renders a compact table of tracked stores and prices inside the email."""
+    if not offers:
+        return ""
+    rows = ""
+    for o in offers[:5]:
+        is_best_badge = '<span style="background: #10b981; color: #ffffff; font-size: 10px; padding: 2px 6px; border-radius: 4px; margin-left: 5px; font-weight: bold;">MELHOR PREÇO</span>' if o.get("is_best") else ""
+        is_official_badge = '<span style="background: #6366f1; color: #ffffff; font-size: 10px; padding: 2px 6px; border-radius: 4px; margin-left: 5px; font-weight: bold;">LOJA OFICIAL</span>' if o.get("is_official") else ""
+        store_link = o.get("url") or fallback_url
+        rows += f"""
+        <tr style="border-bottom: 1px solid rgba(255,255,255,0.06);">
+          <td style="padding: 7px 4px; font-size: 12px; color: #cbd5e1;">
+            <strong>{o['store_name']}</strong> {is_best_badge} {is_official_badge}
+          </td>
+          <td align="right" style="padding: 7px 4px; font-size: 13px; color: #38bdf8; font-weight: bold; font-family: monospace;">
+            R$ {o['price']:,.2f}
+          </td>
+          <td align="right" style="padding: 7px 0 7px 8px;">
+            <a href="{store_link}" target="_blank" style="color: #818cf8; font-size: 11px; text-decoration: none; font-weight: bold;">Ver ↗</a>
+          </td>
+        </tr>
+        """
+    return f"""
+    <div style="background: rgba(15, 23, 42, 0.7); border-radius: 8px; padding: 10px 14px; margin-bottom: 12px; border: 1px solid rgba(255,255,255,0.05);">
+      <div style="font-size: 11px; font-weight: bold; color: #94a3b8; text-transform: uppercase; margin-bottom: 4px;">Comparativo de Lojas:</div>
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        {rows}
+      </table>
+    </div>
+    """
+
 def build_daily_email_html(user_name: str, products: List[Dict[str, Any]]) -> str:
     """Generates a responsive modern HTML email report for the user's products."""
     now_str = datetime.now().strftime("%d/%m/%Y às %H:%M")
@@ -74,9 +105,14 @@ def build_daily_email_html(user_name: str, products: List[Dict[str, Any]]) -> st
                   <span style="font-size: 12px; color: #cbd5e1;">{reason}</span>
                 </div>
 
-                <a href="{best_url}" target="_blank" style="display: inline-block; background-color: #10b981; color: #ffffff; font-weight: bold; font-size: 13px; text-decoration: none; padding: 8px 16px; border-radius: 6px;">
-                  🛒 Ver Oferta na {store}
-                </a>
+                <!-- Stores comparison list -->
+                {build_email_offers_snippet(rec.get("offers", []), best_url)}
+
+                <div style="margin-top: 12px;">
+                  <a href="{best_url}" target="_blank" style="display: inline-block; background-color: #10b981; color: #ffffff; font-weight: bold; font-size: 13px; text-decoration: none; padding: 8px 16px; border-radius: 6px;">
+                    🛒 Comprar na {store}
+                  </a>
+                </div>
               </td>
             </tr>
           </table>
