@@ -3,9 +3,11 @@
  */
 
 // Determine API base URL dynamically
-const API_BASE = (window.location.protocol === 'file:' || window.location.origin === 'null' || !window.location.port || window.location.port === '5500')
+const API_BASE = (window.location.protocol === 'file:' || window.location.origin === 'null')
   ? 'http://127.0.0.1:8080'
-  : window.location.origin;
+  : ((window.location.port === '5500' || window.location.port === '3000')
+      ? 'http://127.0.0.1:8080'
+      : window.location.origin);
 
 const state = {
   products: [],
