@@ -129,6 +129,44 @@ def is_store_ignored(store_name: str, ignored_stores: Optional[List[str]]) -> bo
     return False
 
 
+def resolve_direct_retailer_url(store_name: str, query: str, brand: str = "") -> str:
+    """
+    Returns a clean, direct URL to the merchant or brand's website.
+    NEVER points to an intermediary aggregator like Buscapé/Zoom.
+    """
+    s = store_name.lower().strip()
+    full_q = f"{brand} {query}".strip() if brand and brand.lower() not in query.lower() else query.strip()
+    encoded_q = urllib.parse.quote(full_q)
+
+    # 1. Check official brand store
+    for b_key, b_val in BRAND_OFFICIAL_STORES.items():
+        if b_key in s or b_val["store_name"].lower() in s:
+            return b_val["search_url"].format(query=encoded_q)
+
+    # 2. Check major retail platforms
+    if "amazon" in s:
+        return f"https://www.amazon.com.br/s?k={encoded_q}"
+    elif "magalu" in s or "magazine" in s:
+        return f"https://www.magazineluiza.com.br/busca/{encoded_q}"
+    elif "mercado" in s or "livre" in s:
+        return f"https://lista.mercadolivre.com.br/{encoded_q}"
+    elif "casas" in s or "bahia" in s:
+        return f"https://www.casasbahia.com.br/{encoded_q}/b"
+    elif "fast" in s or "shop" in s:
+        return f"https://www.fastshop.com.br/web/s/{encoded_q}"
+    elif "kabum" in s:
+        return f"https://www.kabum.com.br/busca/{encoded_q}"
+    elif "carrefour" in s:
+        return f"https://www.carrefour.com.br/busca/{encoded_q}"
+    elif "ponto" in s:
+        return f"https://www.pontofrio.com.br/{encoded_q}/b"
+    elif "extra" in s:
+        return f"https://www.extra.com.br/{encoded_q}/b"
+    
+    # Clean direct search
+    return f"https://www.google.com/search?q={encoded_q}+{urllib.parse.quote(store_name)}"
+
+
 def fetch_buscape_offers(
     query: str,
     brand: str = "",
@@ -180,15 +218,16 @@ def fetch_buscape_offers(
                 store_el = card.select_one('[data-testid="product-card::store"]') or card.select_one('[class*="Store"]')
                 raw_store = store_el.get_text(strip=True) if store_el else ""
 
-                # Identify actual retailer if labeled or generic
-                store_name = raw_store if raw_store and raw_store.lower() != "buscapé" else "Magazine Luiza"
+                # Identify actual retailer and direct URL
+                store_name = raw_store if raw_store and raw_store.lower() not in ["buscapé", "buscape"] else "Magazine Luiza"
+                direct_url = resolve_direct_retailer_url(store_name, query, brand)
 
                 if card_price and card_price > 10.0:
                     offers.append({
                         "store_name": store_name,
                         "product_title": title,
                         "price": card_price,
-                        "url": card_href or search_url,
+                        "url": direct_url,
                         "is_best": False,
                         "is_official": False
                     })
@@ -212,20 +251,16 @@ def fetch_buscape_offers(
                             text = oc.get_text(" | ", strip=True)
                             prices_found = re.findall(r'R\$\s*[\d\.]+(?:,\d{2})?', text)
                             
-                            link_el = oc.select_one('a')
-                            link = link_el.get('href') if link_el else ""
-                            if link and link.startswith('/'):
-                                link = f"https://www.buscape.com.br{link}"
-
                             if merchant and prices_found:
                                 p_val = parse_price(prices_found[0])
                                 if p_val and p_val > 10.0 and (merchant, p_val) not in seen_merchants:
                                     seen_merchants.add((merchant, p_val))
+                                    merchant_direct_url = resolve_direct_retailer_url(merchant, query, brand)
                                     offers.append({
                                         "store_name": merchant,
                                         "product_title": f"{full_query} ({merchant})",
                                         "price": p_val,
-                                        "url": link or first_product_url,
+                                        "url": merchant_direct_url,
                                         "is_best": False,
                                         "is_official": False
                                     })

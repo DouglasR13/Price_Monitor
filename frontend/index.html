@@ -124,8 +124,8 @@
         <button class="btn btn-secondary btn-sm" id="btnManageStores" title="Ver e gerenciar lojas confiáveis e ignoradas">
           🛡️ Lojas & Filtros
         </button>
-        <button class="btn btn-secondary btn-sm" id="btnEmailReport" title="Configurar e testar envio de relatório às 22:00">
-          ✉️ Relatório 22:00
+        <button class="btn btn-secondary btn-sm" id="btnEmailReport" title="Configurar alertas e notificações por e-mail">
+          🔔 Alertas & E-mail
         </button>
         <button class="btn btn-primary" id="btnNewProduct">
           + Monitorar Novo Produto
@@ -440,40 +440,40 @@
     </div>
   </div>
 
-  <!-- ==================== MODAL 5: RELATÓRIO POR E-MAIL 22:00 ==================== -->
+  <!-- ==================== MODAL 5: ALERTAS E NOTIFICAÇÕES POR E-MAIL ==================== -->
   <div class="modal-backdrop" id="emailReportModal" role="dialog" aria-modal="true" aria-labelledby="emailModalTitle">
     <div class="modal-window">
       <div class="modal-header">
-        <h2 id="emailModalTitle">✉️ Relatório Diário de Preços por E-mail</h2>
+        <h2 id="emailModalTitle">🔔 Alertas e Notificações por E-mail</h2>
         <button class="modal-close-btn" data-close-modal>&times;</button>
       </div>
 
       <div class="modal-body">
         <p style="font-size: 0.85rem; color: #94a3b8; margin-bottom: 1.25rem; line-height: 1.5;">
-          Todos os dias às <strong>22:00</strong>, o sistema compila o relatório com menor preço, comparativo de todas as lojas pesquisadas e recomendação do dia para os seus produtos monitorados.
+          Receba avisos automáticos no seu e-mail sempre que os preços dos seus produtos caírem, atingirem sua meta ou no resumo automático diário.
         </p>
 
         <div style="background: rgba(99, 102, 241, 0.08); border: 1px solid rgba(99, 102, 241, 0.25); border-radius: var(--radius-sm); padding: 1rem; margin-bottom: 1.25rem;">
-          <div style="font-size: 0.8rem; color: #cbd5e1; margin-bottom: 0.4rem;">
-            👤 <strong>Destinatário:</strong> <span id="emailModalRecipient" style="color: #38bdf8; font-weight: bold;">--</span>
+          <div style="font-size: 0.82rem; color: #cbd5e1; margin-bottom: 0.4rem;">
+            👤 <strong>Seu E-mail Cadastrado:</strong> <span id="emailModalRecipient" style="color: #38bdf8; font-weight: bold;">--</span>
           </div>
-          <div style="font-size: 0.8rem; color: #cbd5e1;">
-            ⏰ <strong>Horário Programado:</strong> <span style="color: #10b981; font-weight: bold;">22:00 (Noturno)</span>
+          <div style="font-size: 0.82rem; color: #cbd5e1;">
+            🎯 <strong>Tipo de Alertas:</strong> <span style="color: #10b981; font-weight: bold;">Baixa de Preço & Oportunidade de Compra</span>
           </div>
         </div>
 
         <!-- Trigger Email Now Test Button -->
         <div style="display: flex; flex-direction: column; gap: 0.75rem; margin-bottom: 1.25rem;">
           <button type="button" class="btn btn-primary" id="btnTriggerEmailNow">
-            ✉️ Enviar / Testar Relatório por E-mail Agora
+            ✉️ Disparar Relatório de Teste Agora
           </button>
           <div id="emailTestFeedback" style="font-size: 0.82rem; padding: 0.75rem; border-radius: var(--radius-sm); display: none;"></div>
         </div>
 
         <!-- Cloud Cron Instructions -->
         <div style="background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.25); border-radius: var(--radius-sm); padding: 0.85rem; font-size: 0.78rem; color: #cbd5e1; line-height: 1.45;">
-          <strong style="color: #34d399;">🌐 Como automatizar o envio 24/7 na Nuvem:</strong><br />
-          Para disparar automaticamente às 22:00 mesmo com seu PC desligado, crie uma tarefa diária gratuita no <a href="https://cron-job.org" target="_blank" style="color: #38bdf8; text-decoration: underline;">cron-job.org</a> com esta URL:
+          <strong style="color: #34d399;">🌐 Como funciona o envio 100% automático na nuvem:</strong><br />
+          Para o sistema varrer as lojas e enviar e-mails sozinho todos os dias (sem depender do seu computador ligado), usamos um agendador gratuito na nuvem (como <a href="https://cron-job.org" target="_blank" style="color: #38bdf8; text-decoration: underline;">cron-job.org</a>) chamando o webhook do seu servidor:
           <div style="background: rgba(0,0,0,0.4); padding: 6px 8px; border-radius: 4px; font-family: monospace; color: #a5f3fc; margin-top: 4px; word-break: break-all;" id="cronWebhookUrl">
             https://price-monitor-cboy.onrender.com/api/cron/daily-report
           </div>

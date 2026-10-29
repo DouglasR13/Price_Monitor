@@ -416,7 +416,7 @@ function updateUserUI() {
       document.getElementById('btnOpenNewUserModal').style.display = 'inline-block';
     } else {
       banner.className = 'user-scope-banner user';
-      bannerText.innerHTML = `👤 <strong>Sua Área Segura (${u.name}):</strong> Visualizando exclusivamente os seus produtos monitorados. Relatório diário configurado para as <strong>22:00</strong>.`;
+      bannerText.innerHTML = `👤 <strong>Sua Área Segura (${u.name}):</strong> Visualizando exclusivamente os seus produtos monitorados com alertas automáticos de preços.`;
       document.getElementById('btnOpenNewUserModal').style.display = 'none';
     }
   }
@@ -491,9 +491,9 @@ async function handleTriggerEmailNow() {
     if (data.mode === 'SMTP_SENT') {
       feedback.innerHTML = `✅ <strong>E-mail real enviado com sucesso!</strong><br />Verifique a caixa de entrada de <em>${data.recipient}</em>.`;
     } else {
-      feedback.innerHTML = `✅ <strong>Relatório das 22:00 gerado com sucesso!</strong><br />${data.message}<br /><span style="font-size: 0.75rem; color: #94a3b8;">${data.products_count} produtos incluídos com gráficos e recomendação de compra.</span>`;
+      feedback.innerHTML = `✅ <strong>Relatório gerado com sucesso!</strong><br />${data.message}<br /><span style="font-size: 0.75rem; color: #94a3b8;">${data.products_count} produtos incluídos com comparativo de lojas e recomendação de compra.</span>`;
     }
-    showToast('Relatório de e-mail das 22:00 gerado com sucesso!', 'success');
+    showToast('Relatório de e-mail enviado com sucesso!', 'success');
   } catch (err) {
     feedback.style.display = 'block';
     feedback.style.background = 'rgba(244, 63, 94, 0.15)';
