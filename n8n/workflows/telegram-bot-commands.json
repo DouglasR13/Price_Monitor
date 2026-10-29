@@ -1,0 +1,125 @@
+{
+  "name": "Bot Telegram Interativo — Comandos",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ],
+        "additionalFields": {}
+      },
+      "id": "telegram-trigger",
+      "name": "Receber Mensagem Telegram",
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.1,
+      "position": [240, 300],
+      "credentials": {
+        "telegramApi": {
+          "id": "telegram-cred-id",
+          "name": "Telegram Bot Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "dataType": "string",
+        "value1": "={{ $json.message.text }}",
+        "rules": {
+          "rules": [
+            {
+              "value2": "/verificar",
+              "output": 0
+            },
+            {
+              "value2": "/produtos",
+              "output": 1
+            }
+          ]
+        },
+        "fallbackOutput": 2
+      },
+      "id": "switch-command",
+      "name": "Identificar Comando",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [480, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://127.0.0.1:8000/api/check-all?notify_telegram=false",
+        "method": "POST"
+      },
+      "id": "http-run-check",
+      "name": "Verificar Todos Agora",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [720, 200]
+    },
+    {
+      "parameters": {
+        "url": "http://127.0.0.1:8000/api/products",
+        "method": "GET"
+      },
+      "id": "http-list-products",
+      "name": "Listar Produtos Monitorados",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [720, 350]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Receber Mensagem Telegram').item.json.message.chat.id }}",
+        "text": "🤖 <b>Comandos do Monitor de Preços:</b>\n\n/produtos — Lista todos os itens monitorados e preços atuais\n/verificar — Dispara uma varredura ao vivo em todas as lojas agora\n\n<i>Ou acesse o painel web em http://localhost:8000</i>",
+        "additionalFields": {
+          "parse_mode": "HTML"
+        }
+      },
+      "id": "telegram-help",
+      "name": "Ajuda / Boas-Vindas",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [720, 500]
+    }
+  ],
+  "connections": {
+    "Receber Mensagem Telegram": {
+      "main": [
+        [
+          {
+            "node": "Identificar Comando",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Identificar Comando": {
+      "main": [
+        [
+          {
+            "node": "Verificar Todos Agora",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Listar Produtos Monitorados",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Ajuda / Boas-Vindas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

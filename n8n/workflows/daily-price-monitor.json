@@ -1,0 +1,131 @@
+{
+  "name": "Monitor Diário de Preços — Alerta Telegram",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 8 * * *"
+            }
+          ]
+        }
+      },
+      "id": "schedule-trigger",
+      "name": "Agendamento Diário (08:00)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://127.0.0.1:8000/api/check-all?notify_telegram=false",
+        "method": "POST",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "id": "http-check-all",
+      "name": "Executar Busca de Preços (API)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "results",
+        "options": {}
+      },
+      "id": "split-results",
+      "name": "Dividir Produtos",
+      "type": "n8n-nodes-base.itemLists",
+      "typeVersion": 3,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.item.json;\nconst rec = item.record || {};\nconst name = item.product_name || 'Produto';\nconst minPrice = (rec.min_price || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });\nconst avgPrice = (rec.avg_price || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });\nconst maxPrice = (rec.max_price || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });\nconst bestStore = rec.best_store || 'Loja Online';\nconst delta = (rec.delta_pct || 0);\n\nlet deltaStr = '➡️ Estável (0%)';\nif (delta < 0) {\n  deltaStr = `📉 ${delta.toFixed(1)}% (Caiu vs ontem!)`;\n} else if (delta > 0) {\n  deltaStr = `📈 +${delta.toFixed(1)}% (Subiu vs ontem)`;\n}\n\nlet badge = '🟡 Preço Regular';\nif (rec.recommendation === 'EXCELLENT') {\n  badge = '🟢 <b>EXCELENTE MOMENTO DE COMPRA!</b>';\n} else if (rec.recommendation === 'HIGH') {\n  badge = '🔴 <b>PREÇO ALTO — RECOMENDAMOS AGUARDAR</b>';\n}\n\nconst reason = rec.recommendation_reason || '';\nconst url = rec.best_url || '';\n\nconst message = `📊 <b>RELATÓRIO DIÁRIO DE PREÇO</b>\\n\\n📦 <b>${name}</b>\\n\\n💰 <b>Menor Preço:</b> ${minPrice}\\n🏪 <b>Loja Mais Barata:</b> <b>${bestStore}</b>\\n📊 <b>Média de Mercado:</b> ${avgPrice}\\n📈 <b>Maior Preço:</b> ${maxPrice}\\n🔄 <b>Variação:</b> ${deltaStr}\\n\\n💡 <b>Veredito:</b>\\n${badge}\\n<i>${reason}</i>\\n\\n🔗 <a href=\"${url}\">Ver Oferta no Buscapé / Loja</a>`;\n\nreturn {\n  product_id: item.product_id,\n  product_name: name,\n  recommendation: rec.recommendation,\n  min_price: rec.min_price,\n  best_url: url,\n  telegram_message: message\n};"
+      },
+      "id": "format-message",
+      "name": "Formatar Relatório HTML",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $env.TELEGRAM_CHAT_ID }}",
+        "text": "={{ $json.telegram_message }}",
+        "additionalFields": {
+          "parse_mode": "HTML",
+          "disable_web_page_preview": false
+        }
+      },
+      "id": "telegram-send",
+      "name": "Enviar Relatório Telegram",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [1120, 300],
+      "credentials": {
+        "telegramApi": {
+          "id": "telegram-cred-id",
+          "name": "Telegram Bot Credential"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Agendamento Diário (08:00)": {
+      "main": [
+        [
+          {
+            "node": "Executar Busca de Preços (API)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Executar Busca de Preços (API)": {
+      "main": [
+        [
+          {
+            "node": "Dividir Produtos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Dividir Produtos": {
+      "main": [
+        [
+          {
+            "node": "Formatar Relatório HTML",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Formatar Relatório HTML": {
+      "main": [
+        [
+          {
+            "node": "Enviar Relatório Telegram",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

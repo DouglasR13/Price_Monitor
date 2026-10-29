@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Monitor de Preços Inteligente — O Melhor Momento de Comprar</title>
+  <meta name="description" content="Sistema inteligente de monitoramento diário de preços em sites confiáveis com recomendação do melhor dia de compra e alertas no Telegram.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./css/style.css">
+</head>
+<body>
+
+  <!-- ==================== AUTHENTICATION OVERLAY PORTAL ==================== -->
+  <div class="auth-screen-overlay hidden" id="authScreenOverlay">
+    <div class="auth-box">
+      <div class="auth-brand">
+        <div class="auth-logo-icon">📊</div>
+        <h2>PriceRadar AI</h2>
+        <p>Acesse seu monitor inteligente de preços e oportunidades</p>
+      </div>
+
+      <!-- Tabs: Entrar vs Criar Conta -->
+      <div class="auth-tabs">
+        <button type="button" class="auth-tab-btn active" id="tabBtnLogin">Entrar</button>
+        <button type="button" class="auth-tab-btn" id="tabBtnRegister">Criar Conta</button>
+      </div>
+
+      <!-- 1. LOGIN FORM -->
+      <form id="authLoginForm">
+        <!-- Security lockout countdown banner -->
+        <div class="lockout-alert" id="loginLockoutBanner">
+          🔒 <strong>Acesso temporariamente bloqueado!</strong><br />
+          <span>Muitas tentativas incorretas. Aguarde o tempo restante:</span>
+          <div class="lockout-timer" id="lockoutTimerText">03:00</div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="loginEmail">E-mail</label>
+          <input type="email" id="loginEmail" class="form-input" placeholder="seu@email.com" required />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="loginPassword">Senha</label>
+          <input type="password" id="loginPassword" class="form-input" placeholder="••••••••" required />
+          <div id="loginFeedback" style="font-size: 0.78rem; margin-top: 0.35rem; color: #fb7185; display: none;"></div>
+        </div>
+
+        <button type="submit" class="btn btn-primary" id="btnSubmitLogin" style="width: 100%; padding: 0.75rem; margin-top: 0.5rem;">
+          Entrar no Sistema
+        </button>
+
+        <div class="auth-demo-accounts">
+          <span>Contas de teste para acesso rápido:</span><br />
+          <button type="button" onclick="fillDemoCredentials('admin@radar.com', 'Admin@123')">👑 Admin (Admin@123)</button>
+          <button type="button" onclick="fillDemoCredentials('usuario@demo.com', 'User@123')">👤 Usuário (User@123)</button>
+        </div>
+      </form>
+
+      <!-- 2. REGISTER FORM -->
+      <form id="authRegisterForm" style="display: none;">
+        <div class="form-group">
+          <label class="form-label" for="regName">Nome Completo *</label>
+          <input type="text" id="regName" class="form-input" placeholder="Ex: Mariana Costa" required />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="regEmail">E-mail *</label>
+          <input type="email" id="regEmail" class="form-input" placeholder="mariana@email.com" required />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="regPassword">Crie uma Senha Forte *</label>
+          <input type="password" id="regPassword" class="form-input" placeholder="••••••••" required />
+          
+          <!-- Live Real-Time Password Checklist -->
+          <div class="password-rules-box">
+            <div style="font-weight: 700; color: #cbd5e1; margin-bottom: 0.35rem;">Requisitos de Segurança:</div>
+            <div class="rule-item invalid" id="ruleLen"><span>⚪</span> Mínimo de 8 caracteres</div>
+            <div class="rule-item invalid" id="ruleUpper"><span>⚪</span> Pelo menos 1 letra maiúscula (A-Z)</div>
+            <div class="rule-item invalid" id="ruleNum"><span>⚪</span> Pelo menos 1 número (0-9)</div>
+            <div class="rule-item invalid" id="ruleSpecial"><span>⚪</span> Pelo menos 1 caractere especial (!@#$%&*)</div>
+          </div>
+        </div>
+
+        <div id="regFeedback" class="alert-box" style="display: none; background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.4); color: #fca5a5; padding: 0.65rem 0.85rem; border-radius: 8px; font-size: 0.85rem; margin-bottom: 0.75rem;"></div>
+
+        <button type="submit" class="btn btn-primary" id="btnSubmitRegister" style="width: 100%; padding: 0.75rem;">
+          Cadastrar e Acessar Monitor
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- App Header -->
+  <header>
+    <div class="header-container">
+      <a href="#" class="logo-area" id="logoLink">
+        <div class="logo-icon">📊</div>
+        <div class="logo-text">
+          <h1>PriceRadar AI</h1>
+          <div class="logo-tag">
+            <span class="status-dot"></span>
+            <span>Monitoramento Ativo Diário</span>
+          </div>
+        </div>
+      </a>
+
+      <div class="header-actions">
+        <!-- User Profile Switcher -->
+        <div class="user-profile-badge" id="userProfileBadge" title="Clique para alternar usuário ou ver perfil">
+          <div class="user-avatar" id="userAvatar">👑</div>
+          <div class="user-details">
+            <span class="user-role-tag" id="userRoleTag">Admin</span>
+            <span class="user-name" id="userName">Administrador</span>
+          </div>
+          <select id="userSelector" class="user-switch-select" title="Trocar Perfil"></select>
+        </div>
+
+        <!-- Admin Only Buttons (Hidden for regular users) -->
+        <button class="btn btn-secondary btn-sm" id="btnSettings" data-admin-only="true" title="Configurar Telegram e n8n (Apenas Administrador)">
+          ⚙️ Telegram & n8n
+        </button>
+        <button class="btn btn-secondary btn-sm" id="btnCheckAll" data-admin-only="true" title="Dispara uma varredura geral em todas as lojas agora (Apenas Administrador)">
+          🔄 Verificar Todos
+        </button>
+
+        <!-- Common User Buttons -->
+        <button class="btn btn-secondary btn-sm" id="btnEmailReport" title="Configurar e testar envio de relatório às 22:00">
+          ✉️ Relatório 22:00
+        </button>
+        <button class="btn btn-primary" id="btnNewProduct">
+          + Monitorar Novo Produto
+        </button>
+        <button class="btn btn-secondary btn-sm" id="btnLogout" title="Sair da sua conta">
+          🚪 Sair
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Active Profile Scope Notification Banner -->
+  <div id="userScopeBanner" class="user-scope-banner admin">
+    <div id="userScopeText">
+      👑 <strong>Modo Administrador Ativo:</strong> Visualizando todos os produtos monitorados no sistema.
+    </div>
+    <button class="btn btn-secondary btn-sm" id="btnOpenNewUserModal" style="padding: 0.25rem 0.65rem; font-size: 0.75rem;">
+      + Criar Perfil de Usuário
+    </button>
+  </div>
+
+  <main>
+    <!-- Key Metrics Stats Banner -->
+    <section class="stats-grid" aria-label="Estatísticas do Monitor">
+      <div class="stat-card">
+        <div class="stat-icon-wrapper indigo">📦</div>
+        <div class="stat-info">
+          <h3>Produtos Monitorados</h3>
+          <div class="stat-value" id="statTotalTracked">0</div>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-icon-wrapper emerald">🎯</div>
+        <div class="stat-info">
+          <h3>Oportunidades Hoje</h3>
+          <div class="stat-value" id="statBargains">0</div>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-icon-wrapper amber">💰</div>
+        <div class="stat-info">
+          <h3>Preço Médio Rastreado</h3>
+          <div class="stat-value" id="statAvgPrice">R$ 0</div>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-icon-wrapper cyan">📈</div>
+        <div class="stat-info">
+          <h3>Total de Verificações</h3>
+          <div class="stat-value" id="statTotalChecks">0</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Search & Filter Bar -->
+    <section class="controls-bar" aria-label="Filtros e Busca">
+      <div class="search-box">
+        <span class="search-icon">🔍</span>
+        <input type="text" id="productSearchInput" placeholder="Buscar por produto, marca ou loja..." />
+      </div>
+
+      <div class="filter-pills" role="tablist">
+        <button class="pill-btn active" data-filter="all">Todos</button>
+        <button class="pill-btn pill-bargain" data-filter="bargain">🟢 Oportunidades de Compra</button>
+        <button class="pill-btn" data-filter="games">Games</button>
+        <button class="pill-btn" data-filter="áudio">Áudio</button>
+        <button class="pill-btn" data-filter="smartphones">Smartphones</button>
+        <button class="pill-btn" data-filter="tv e vídeo">TV e Vídeo</button>
+      </div>
+    </section>
+
+    <!-- Monitored Products Grid -->
+    <section class="products-grid" id="productsGrid" aria-label="Lista de Produtos Monitorados">
+      <!-- Injected dynamically via app.js -->
+    </section>
+  </main>
+
+  <!-- ==================== MODAL 1: NOVO PRODUTO ==================== -->
+  <div class="modal-backdrop" id="newProductModal" role="dialog" aria-modal="true" aria-labelledby="newProductTitle">
+    <div class="modal-window">
+      <div class="modal-header">
+        <h2 id="newProductTitle">Adicionar Produto para Monitorar</h2>
+        <button class="modal-close-btn" data-close-modal>&times;</button>
+      </div>
+
+      <form id="formNewProduct">
+        <div class="modal-body">
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label" for="newProdName">Nome do Produto *</label>
+              <input type="text" id="newProdName" class="form-input" placeholder="Ex: Sony WH-1000XM5" required />
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="newProdBrand">Marca *</label>
+              <input type="text" id="newProdBrand" class="form-input" placeholder="Ex: Sony" required />
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label" for="newProdCategory">Categoria</label>
+              <select id="newProdCategory" class="form-select">
+                <option value="Eletrônicos">Eletrônicos</option>
+                <option value="Games">Games</option>
+                <option value="Áudio">Áudio</option>
+                <option value="Smartphones">Smartphones</option>
+                <option value="Informática">Informática</option>
+                <option value="TV e Vídeo">TV e Vídeo</option>
+                <option value="Eletrodomésticos">Eletrodomésticos</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="newProdTargetPrice">Preço-Alvo Desejado (R$)</label>
+              <input type="number" step="0.01" id="newProdTargetPrice" class="form-input" placeholder="Ex: 2100.00" />
+              <div class="form-help">Você receberá um alerta prioritário se o preço cair abaixo deste valor.</div>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="newProdQuery">Termo Exato de Busca nos Sites</label>
+            <input type="text" id="newProdQuery" class="form-input" placeholder="Ex: Fone Sony WH-1000XM5 Bluetooth" />
+            <div class="form-help">Se deixar vazio, usaremos "Marca + Nome".</div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="newProdImage">URL da Imagem (Opcional)</label>
+            <input type="url" id="newProdImage" class="form-input" placeholder="https://..." />
+            <div class="form-help">Caso não informe, o coletor tentará obter a foto automaticamente da loja.</div>
+          </div>
+
+          <!-- Live Preview Test Button -->
+          <div style="display: flex; gap: 0.5rem; align-items: center; margin-top: 0.5rem;">
+            <button type="button" class="btn btn-secondary btn-sm" id="btnPreviewSearch">
+              🔍 Testar Busca ao Vivo
+            </button>
+            <span style="font-size: 0.75rem; color: #94a3b8;">Verifique as ofertas encontradas antes de salvar.</span>
+          </div>
+
+          <!-- Preview Results Container -->
+          <div class="preview-results-box" id="previewResultsBox"></div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-close-modal>Cancelar</button>
+          <button type="submit" class="btn btn-primary" id="btnSubmitNewProd">Cadastrar e Começar a Monitorar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ==================== MODAL 2: HISTÓRICO E GRÁFICO ==================== -->
+  <div class="modal-backdrop" id="historyModal" role="dialog" aria-modal="true" aria-labelledby="historyProdTitle">
+    <div class="modal-window modal-lg">
+      <div class="modal-header">
+        <div>
+          <h2 id="historyProdTitle">Histórico de Preço</h2>
+          <div style="font-size: 0.8rem; color: #94a3b8; margin-top: 0.2rem;">
+            Preço-Alvo: <span id="historyTargetPrice" style="color: #f59e0b; font-weight: 600;">--</span>
+          </div>
+        </div>
+        <button class="modal-close-btn" data-close-modal>&times;</button>
+      </div>
+
+      <div class="modal-body">
+        <!-- Summary Stats of History -->
+        <div class="chart-stats-summary">
+          <div class="chart-stat-item">
+            <div class="lbl">Mínima Histórica</div>
+            <div class="val" id="chartMinPrice" style="color: #34d399;">R$ 0</div>
+          </div>
+          <div class="chart-stat-item">
+            <div class="lbl">Média dos Registros</div>
+            <div class="val" id="chartAvgPrice">R$ 0</div>
+          </div>
+          <div class="chart-stat-item">
+            <div class="lbl">Máxima Registrada</div>
+            <div class="val" id="chartMaxPrice" style="color: #fb7185;">R$ 0</div>
+          </div>
+          <div class="chart-stat-item">
+            <div class="lbl">Total de Verificações</div>
+            <div class="val" id="chartPointsCount">0</div>
+          </div>
+        </div>
+
+        <!-- Canvas Chart Container -->
+        <div class="chart-container-box">
+          <canvas id="priceHistoryChart"></canvas>
+        </div>
+
+        <!-- Table of past checks -->
+        <h4 style="font-size: 0.9rem; margin-bottom: 0.75rem; color: #cbd5e1;">Registro Detalhado por Data</h4>
+        <div style="max-height: 200px; overflow-y: auto; border: 1px solid var(--border-subtle); border-radius: var(--radius-sm);">
+          <table class="history-table">
+            <thead>
+              <tr>
+                <th>Data e Hora</th>
+                <th>Menor Preço</th>
+                <th>Melhor Loja</th>
+                <th>Variação</th>
+              </tr>
+            </thead>
+            <tbody id="historyTableBody">
+              <!-- Injected by app.js -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-close-modal>Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== MODAL 3: CONFIGURAÇÕES TELEGRAM & N8N ==================== -->
+  <div class="modal-backdrop" id="settingsModal" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
+    <div class="modal-window">
+      <div class="modal-header">
+        <h2 id="settingsTitle">Configurações de Alertas — Telegram & n8n</h2>
+        <button class="modal-close-btn" data-close-modal>&times;</button>
+      </div>
+
+      <form id="formSettings">
+        <div class="modal-body">
+          <p style="font-size: 0.85rem; color: #94a3b8; margin-bottom: 1.25rem; line-height: 1.5;">
+            Conecte seu bot do Telegram para receber relatórios diários matinais e alertas imediatos quando um produto atingir o menor preço histórico ou sua meta de compra.
+          </p>
+
+          <div class="form-group">
+            <label class="form-label" for="inputTelegramToken">Token do Bot do Telegram</label>
+            <input type="text" id="inputTelegramToken" class="form-input" placeholder="Ex: 7123456789:AAFlkjw98234_..." />
+            <div class="form-help">Criado conversando com o <strong>@BotFather</strong> no Telegram.</div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="inputTelegramChatId">Seu Chat ID do Telegram</label>
+            <input type="text" id="inputTelegramChatId" class="form-input" placeholder="Ex: 123456789" />
+            <div class="form-help">Obtido enviando uma mensagem para o bot <strong>@userinfobot</strong> no Telegram.</div>
+          </div>
+
+          <div style="margin-top: 1.25rem; display: flex; gap: 0.75rem; align-items: center;">
+            <button type="button" class="btn btn-secondary btn-sm" id="btnTestTelegram">
+              🔔 Enviar Mensagem de Teste
+            </button>
+            <a href="/api/n8n/export-workflow" download="daily-price-monitor.json" class="btn btn-secondary btn-sm" id="btnDownloadWorkflow">
+              📥 Baixar Workflow para n8n
+            </a>
+          </div>
+
+          <div style="margin-top: 1.5rem; padding: 1rem; background: rgba(99, 102, 241, 0.08); border: 1px solid rgba(99, 102, 241, 0.2); border-radius: var(--radius-sm); font-size: 0.8rem; color: #cbd5e1; line-height: 1.5;">
+            <strong>💡 Como usar com o n8n:</strong><br />
+            1. Abra o n8n no seu computador com <code>npx n8n</code>.<br />
+            2. Acesse <code>http://localhost:5678</code> e importe o arquivo JSON baixado.<br />
+            3. O n8n executará a varredura e o envio dos relatórios no horário que você desejar!
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-close-modal>Fechar</button>
+          <button type="submit" class="btn btn-primary">Salvar Configurações</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ==================== MODAL 4: NOVO USUÁRIO ==================== -->
+  <div class="modal-backdrop" id="newUserModal" role="dialog" aria-modal="true" aria-labelledby="newUserTitle">
+    <div class="modal-window">
+      <div class="modal-header">
+        <h2 id="newUserTitle">Criar Novo Perfil de Usuário</h2>
+        <button class="modal-close-btn" data-close-modal>&times;</button>
+      </div>
+
+      <form id="formNewUser">
+        <div class="modal-body">
+          <p style="font-size: 0.85rem; color: #94a3b8; margin-bottom: 1.25rem;">
+            Crie perfis independentes. Cada usuário visualiza somente seus próprios produtos monitorados e pode ter seu próprio Telegram configurado.
+          </p>
+
+          <div class="form-group">
+            <label class="form-label" for="newUserName">Nome do Usuário *</label>
+            <input type="text" id="newUserName" class="form-input" placeholder="Ex: Mariana Costa" required />
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="newUserEmail">E-mail de Acesso *</label>
+            <input type="email" id="newUserEmail" class="form-input" placeholder="mariana@email.com" required />
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="newUserPassword">Senha *</label>
+            <input type="password" id="newUserPassword" class="form-input" placeholder="••••••••" required />
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="newUserTelegram">Chat ID do Telegram (Opcional)</label>
+            <input type="text" id="newUserTelegram" class="form-input" placeholder="Ex: 987654321" />
+            <div class="form-help">Para receber os alertas deste usuário no Telegram pessoal dele.</div>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-close-modal>Cancelar</button>
+          <button type="submit" class="btn btn-primary" id="btnSubmitNewUser">Criar Perfil</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ==================== MODAL 5: RELATÓRIO POR E-MAIL 22:00 ==================== -->
+  <div class="modal-backdrop" id="emailReportModal" role="dialog" aria-modal="true" aria-labelledby="emailModalTitle">
+    <div class="modal-window">
+      <div class="modal-header">
+        <h2 id="emailModalTitle">✉️ Relatório Diário de Preços por E-mail</h2>
+        <button class="modal-close-btn" data-close-modal>&times;</button>
+      </div>
+
+      <div class="modal-body">
+        <p style="font-size: 0.85rem; color: #94a3b8; margin-bottom: 1.25rem; line-height: 1.5;">
+          Todos os dias às <strong>22:00</strong>, o sistema compila o relatório com menor preço, loja mais barata e a recomendação do dia para os seus produtos monitorados e envia diretamente para o seu e-mail cadastrado.
+        </p>
+
+        <div style="background: rgba(99, 102, 241, 0.08); border: 1px solid rgba(99, 102, 241, 0.25); border-radius: var(--radius-sm); padding: 1rem; margin-bottom: 1.5rem;">
+          <div style="font-size: 0.8rem; color: #cbd5e1; margin-bottom: 0.4rem;">
+            👤 <strong>Destinatário Atual:</strong> <span id="emailModalRecipient" style="color: #38bdf8; font-weight: bold;">--</span>
+          </div>
+          <div style="font-size: 0.8rem; color: #cbd5e1;">
+            ⏰ <strong>Horário Programado:</strong> <span style="color: #10b981; font-weight: bold;">22:00 (Noturno)</span>
+          </div>
+        </div>
+
+        <!-- Trigger Email Now Test Button -->
+        <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+          <button type="button" class="btn btn-primary" id="btnTriggerEmailNow">
+            ✉️ Enviar / Testar Relatório por E-mail Agora
+          </button>
+          <div id="emailTestFeedback" style="font-size: 0.82rem; padding: 0.75rem; border-radius: var(--radius-sm); display: none;"></div>
+        </div>
+
+        <div style="margin-top: 1.25rem; font-size: 0.75rem; color: #64748b; line-height: 1.4;">
+          * Se o seu servidor SMTP estiver configurado no <code>.env</code>, o e-mail real será entregue na sua caixa de entrada. Em modo local sem SMTP, uma simulação com visualização completa em HTML é gerada com segurança.
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-close-modal>Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="./js/charts.js"></script>
+  <script src="./js/app.js"></script>
+</body>
+</html>
