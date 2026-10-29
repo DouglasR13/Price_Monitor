@@ -256,7 +256,13 @@
           </div>
 
           <div class="form-group">
-            <label class="form-label" for="newProdImage">URL da Imagem (Opcional)</label>
+            <label class="form-label" for="newProdDirectUrl">Link Direto da Loja (Recomendado para precisão máxima)</label>
+            <input type="url" id="newProdDirectUrl" class="form-input" placeholder="Ex: https://www.magazineluiza.com.br/... ou https://loja.electrolux.com.br/..." />
+            <div class="form-help">Cole o link da página do produto exato. O robô irá ler diretamente o preço e a foto dele!</div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="newProdImage">URL da Imagem de Referência (Opcional)</label>
             <input type="url" id="newProdImage" class="form-input" placeholder="https://..." />
             <div class="form-help">Caso não informe, o coletor tentará obter a foto automaticamente da loja.</div>
           </div>
@@ -281,7 +287,78 @@
     </div>
   </div>
 
-  <!-- ==================== MODAL 2: HISTÓRICO E GRÁFICO ==================== -->
+  <!-- ==================== MODAL DE EDIÇÃO DO PRODUTO ==================== -->
+  <div class="modal-backdrop" id="editProductModal" role="dialog" aria-modal="true" style="display: none;">
+    <div class="modal-window">
+      <div class="modal-header">
+        <div>
+          <h2>✏️ Editar Produto Monitorado</h2>
+          <div style="font-size: 0.8rem; color: #94a3b8; margin-top: 0.2rem;">Ajuste o nome, modelo exato, link da loja ou foto de referência</div>
+        </div>
+        <button class="modal-close-btn" data-close-modal>&times;</button>
+      </div>
+
+      <form id="formEditProduct">
+        <input type="hidden" id="editProdId" />
+        <div class="modal-body">
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label" for="editProdName">Nome do Produto *</label>
+              <input type="text" id="editProdName" class="form-input" required />
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="editProdBrand">Marca *</label>
+              <input type="text" id="editProdBrand" class="form-input" required />
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label" for="editProdCategory">Categoria</label>
+              <select id="editProdCategory" class="form-select">
+                <option value="Eletrônicos">Eletrônicos</option>
+                <option value="Games">Games</option>
+                <option value="Áudio">Áudio</option>
+                <option value="Smartphones">Smartphones</option>
+                <option value="Informática">Informática</option>
+                <option value="TV e Vídeo">TV e Vídeo</option>
+                <option value="Eletrodomésticos">Eletrodomésticos</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="editProdTargetPrice">Preço-Alvo Desejado (R$)</label>
+              <input type="number" step="0.01" id="editProdTargetPrice" class="form-input" placeholder="Ex: 3500.00" />
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="editProdQuery">Modelo Exato / Termo de Busca Preciso</label>
+            <input type="text" id="editProdQuery" class="form-input" placeholder="Ex: Geladeira Electrolux Frost Free 440L Side by Side Inox" />
+            <div class="form-help">Quanto mais específico o modelo, mais certeira será a busca de preços.</div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="editProdDirectUrl">Link Direto da Loja (Recomendado para evitar alucinações)</label>
+            <input type="url" id="editProdDirectUrl" class="form-input" placeholder="Ex: https://www.magazineluiza.com.br/... ou https://loja.electrolux.com.br/..." />
+            <div class="form-help">Cole o link da página do produto exato. O robô irá rastrear diretamente o preço daquela página!</div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="editProdImage">URL da Foto de Referência</label>
+            <input type="url" id="editProdImage" class="form-input" placeholder="https://..." />
+            <div class="form-help">Cole o link da foto real do produto para que o card mostre a imagem correta.</div>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-close-modal>Cancelar</button>
+          <button type="submit" class="btn btn-primary" id="btnSubmitEditProd">Salvar Alterações e Reavaliar</button>
+        </div>
+      </form>
+    </div>
+  </div>
   <div class="modal-backdrop" id="historyModal" role="dialog" aria-modal="true" aria-labelledby="historyProdTitle">
     <div class="modal-window modal-lg">
       <div class="modal-header">

@@ -188,10 +188,21 @@ def check_single_product(product_id: int, send_telegram: bool = True) -> Dict[st
     ignored = repo.get_ignored_stores(user_id) if user_id else []
 
     search_q = product["search_query"] or f"{product['brand']} {product['name']}"
+
+    # Extract direct URL if provided in description or search_query
+    direct_url = ""
+    desc = (product.get("description") or "").strip()
+    sq = (product.get("search_query") or "").strip()
+    if desc.startswith("http://") or desc.startswith("https://"):
+        direct_url = desc
+    elif sq.startswith("http://") or sq.startswith("https://"):
+        direct_url = sq
+
     scraped = fetch_buscape_offers(
         query=search_q,
         brand=product.get("brand", ""),
-        ignored_stores=ignored
+        ignored_stores=ignored,
+        direct_url=direct_url
     )
 
     # Get history for analysis
@@ -204,10 +215,14 @@ def check_single_product(product_id: int, send_telegram: bool = True) -> Dict[st
         target_price=product.get("target_price"),
     )
 
-    # Update product image if empty
-    if not product.get("image_url") and scraped.get("image_url"):
-        from app.database_supabase import get_supabase as _sb
-        _sb().table("products").update({"image_url": scraped["image_url"]}).eq("id", product_id).execute()
+    # Update product image with real product photo if newly found
+    from app.database_supabase import get_supabase as _sb
+    updates_to_prod = {}
+    if scraped.get("image_url") and (not product.get("image_url") or "unsplash" in product.get("image_url", "")):
+        updates_to_prod["image_url"] = scraped["image_url"]
+
+    if updates_to_prod:
+        _sb().table("products").update(updates_to_prod).eq("id", product_id).execute()
 
     record_id = repo.add_price_record(
         product_id=product_id,

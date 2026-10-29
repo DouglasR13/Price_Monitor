@@ -153,6 +153,7 @@ function initEventListeners() {
 
   // New Product Form
   document.getElementById('formNewProduct')?.addEventListener('submit', handleCreateProduct);
+  document.getElementById('formEditProduct')?.addEventListener('submit', handleEditProduct);
   document.getElementById('btnPreviewSearch')?.addEventListener('click', handlePreviewSearch);
 
   // Settings Form
@@ -683,6 +684,9 @@ function renderProducts() {
           <button class="btn btn-secondary btn-sm" onclick="openProductStoresModal(${p.id})" title="Ver todas as lojas onde este produto foi achado">
             🏪 Lojas (${offersCount || 1})
           </button>
+          <button class="btn btn-secondary btn-sm" onclick="openEditProductModal(${p.id})" title="Editar nome, modelo, foto ou link direto deste produto">
+            ✏️ Editar
+          </button>
           <button class="btn btn-secondary btn-sm" onclick="openHistoryModal(${p.id})">
             📈 Gráfico
           </button>
@@ -829,13 +833,15 @@ async function handleCreateProduct(e) {
   const brand = document.getElementById('newProdBrand').value.trim();
   const category = document.getElementById('newProdCategory').value;
   const targetPriceVal = document.getElementById('newProdTargetPrice').value;
-  const search_query = document.getElementById('newProdQuery').value.trim() || `${brand} ${name}`;
+  const directUrl = document.getElementById('newProdDirectUrl') ? document.getElementById('newProdDirectUrl').value.trim() : '';
+  const search_query = directUrl || (document.getElementById('newProdQuery').value.trim() || `${brand} ${name}`);
   const image_url = document.getElementById('newProdImage').value.trim() || null;
 
   const payload = {
     name,
     brand,
     category,
+    description: directUrl, // store direct URL in description field
     search_query,
     target_price: targetPriceVal ? parseFloat(targetPriceVal) : null,
     image_url,
@@ -864,6 +870,74 @@ async function handleCreateProduct(e) {
     showToast('Erro ao cadastrar produto.', 'error');
   } finally {
     submitBtn.disabled = false;
+    submitBtn.innerHTML = `Cadastrar e Começar a Monitorar`;
+  }
+}
+
+// ==================== EDIT PRODUCT CONTROLLER ====================
+
+function openEditProductModal(productId) {
+  const prod = state.products.find(p => p.id === productId);
+  if (!prod) return;
+
+  document.getElementById('editProdId').value = prod.id;
+  document.getElementById('editProdName').value = prod.name || '';
+  document.getElementById('editProdBrand').value = prod.brand || '';
+  document.getElementById('editProdCategory').value = prod.category || 'Geral';
+  document.getElementById('editProdTargetPrice').value = prod.target_price || '';
+  document.getElementById('editProdQuery').value = prod.search_query || '';
+  document.getElementById('editProdDirectUrl').value = (prod.description && prod.description.startsWith('http')) ? prod.description : '';
+  document.getElementById('editProdImage').value = (prod.image_url && !prod.image_url.includes('unsplash')) ? prod.image_url : '';
+
+  openModal('editProductModal');
+}
+
+async function handleEditProduct(e) {
+  e.preventDefault();
+  const productId = parseInt(document.getElementById('editProdId').value);
+  const name = document.getElementById('editProdName').value.trim();
+  const brand = document.getElementById('editProdBrand').value.trim();
+  const category = document.getElementById('editProdCategory').value;
+  const targetPriceVal = document.getElementById('editProdTargetPrice').value;
+  const directUrl = document.getElementById('editProdDirectUrl').value.trim();
+  const query = document.getElementById('editProdQuery').value.trim() || `${brand} ${name}`;
+  const image_url = document.getElementById('editProdImage').value.trim() || null;
+
+  const payload = {
+    name,
+    brand,
+    category,
+    description: directUrl,
+    search_query: directUrl || query,
+    target_price: targetPriceVal ? parseFloat(targetPriceVal) : null,
+    image_url
+  };
+
+  const submitBtn = document.getElementById('btnSubmitEditProd');
+  submitBtn.disabled = true;
+  submitBtn.innerHTML = `<span class="spinner"></span> Salvando e Reavaliando...`;
+
+  try {
+    const res = await fetch(`${API_BASE}/api/products/${productId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    if (!res.ok) throw new Error('Falha ao atualizar produto');
+
+    // Trigger re-check with new data immediately
+    await fetch(`${API_BASE}/api/products/${productId}/check`, { method: 'POST' });
+
+    showToast(`Produto "${name}" atualizado e reavaliado com sucesso!`, 'success');
+    closeModal('editProductModal');
+    await loadDashboardData();
+  } catch (err) {
+    showToast(`Erro ao editar: ${err.message}`, 'error');
+  } finally {
+    submitBtn.disabled = false;
+    submitBtn.innerHTML = `Salvar Alterações e Reavaliar`;
+  }
+}
     submitBtn.innerHTML = `Cadastrar e Começar a Monitorar`;
   }
 }
